@@ -140,8 +140,8 @@ public:
   inline void setIPAddress(const uint8_t * addr) { writeSIPR(addr); }
   inline void getIPAddress(uint8_t * addr) { readSIPR(addr); }
 
-  inline void setRetransmissionTime(uint16_t timeout) { writeRTR(timeout); }
-  inline void setRetransmissionCount(uint8_t retry) { writeRCR(retry); }
+  inline void setRetransmissionTime(uint16_t timeout) { if (chip == 55) writeRTR_W5500(timeout); else writeRTR(timeout); }
+  inline void setRetransmissionCount(uint8_t retry) { if (chip == 55) writeRCR_W5500(retry); else writeRCR(retry); }
 
   static void execCmdSn(SOCKET s, SockCMD _cmd);
 
@@ -197,20 +197,38 @@ public:
   __GP_REGISTER_N(SIPR,   0x000F, 4); // Source IP address
   __GP_REGISTER8 (IR,     0x0015);    // Interrupt
   __GP_REGISTER8 (IMR,    0x0016);    // Interrupt Mask
-  __GP_REGISTER16(RTR,    0x0017);    // Timeout address
-  __GP_REGISTER8 (RCR,    0x0019);    // Retry count
+  __GP_REGISTER16(RTR,    0x0017);    // Timeout address (not W5500)
+  __GP_REGISTER8 (RCR,    0x0019);    // Retry count (not W5500)
   __GP_REGISTER8 (RMSR,   0x001A);    // Receive memory size (W5100 only)
   __GP_REGISTER8 (TMSR,   0x001B);    // Transmit memory size (W5100 only)
-  __GP_REGISTER8 (PATR,   0x001C);    // Authentication type address in PPPoE mode
-  __GP_REGISTER8 (PTIMER, 0x0028);    // PPP LCP Request Timer
-  __GP_REGISTER8 (PMAGIC, 0x0029);    // PPP LCP Magic Number
+  __GP_REGISTER8 (PATR,   0x001C);    // Authentication type address in PPPoE mode (not W5500)
+  __GP_REGISTER8 (PTIMER, 0x0028);    // PPP LCP Request Timer (not W5500)
+  __GP_REGISTER8 (PMAGIC, 0x0029);    // PPP LCP Magic Number (not W5500)
   __GP_REGISTER_N(UIPR,   0x002A, 4); // Unreachable IP address in UDP mode (W5100 only)
   __GP_REGISTER16(UPORT,  0x002E);    // Unreachable Port address in UDP mode (W5100 only)
-  __GP_REGISTER8 (VERSIONR_W5200,0x001F);   // Chip Version Register (W5200 only)
-  __GP_REGISTER8 (VERSIONR_W5500,0x0039);   // Chip Version Register (W5500 only)
-  __GP_REGISTER8 (PSTATUS_W5200,     0x0035);    // PHY Status
-  __GP_REGISTER8 (PHYCFGR_W5500,     0x002E);    // PHY Configuration register, default: 10111xxx
 
+  // W5200 only registers
+  __GP_REGISTER8 (VERSIONR_W5200, 0x001F);    // Chip Version Register
+  __GP_REGISTER16(INTLEVEL_W5200, 0x0030);    // Interrupt low level timer
+  __GP_REGISTER8 (IR2_W5200,      0x0034);    // Socket Interrupt
+  __GP_REGISTER8 (PSTATUS_W5200,  0x0035);    // PHY Status
+  __GP_REGISTER8 (IMR2_W5200,     0x0036);    // Socket Interrupt Mask
+
+  // W5500 only registers
+  __GP_REGISTER16(INTLEVEL_W5500, 0x0013);    // Interrupt low level timer
+  __GP_REGISTER8 (SIR_W5500,      0x0017);    // Socket Interrupt
+  __GP_REGISTER8 (SIMR_W5500,     0x0018);    // Socket Interrupt Mask
+  __GP_REGISTER16(RTR_W5500,      0x0019);    // Timeout address
+  __GP_REGISTER8 (RCR_W5500,      0x001B);    // Retry count
+  __GP_REGISTER8 (PTIMER_W5500,   0x001C);    // PPP LCP Request Timer
+  __GP_REGISTER8 (PMAGIC_W5500,   0x001D);    // PPP LCP Magic Number
+  __GP_REGISTER_N(PHAR_W5500,     0x001E, 4); // PPP Destination MAC address
+  __GP_REGISTER16(PSID_W5500,     0x0024);    // PPP Session identification
+  __GP_REGISTER16(PMRU_W5500,     0x0026);    // PPP Maximum segment size
+  __GP_REGISTER_N(UIPR_W5500,     0x0028, 4); // Unreachable IP address in UDP mode
+  __GP_REGISTER16(UPORT_W5500,    0x002C);    // Unreachable Port address in UDP mode
+  __GP_REGISTER8 (PHYCFGR_W5500,  0x002E);    // PHY Configuration register, default: 10111xxx
+  __GP_REGISTER8 (VERSIONR_W5500, 0x0039);    // Chip Version Register
 
 #undef __GP_REGISTER8
 #undef __GP_REGISTER16
@@ -278,17 +296,20 @@ public:
   __SOCKET_REGISTER_N(SnDIPR,     0x000C, 4)     // Destination IP Addr
   __SOCKET_REGISTER16(SnDPORT,    0x0010)        // Destination Port
   __SOCKET_REGISTER16(SnMSSR,     0x0012)        // Max Segment Size
-  __SOCKET_REGISTER8(SnPROTO,     0x0014)        // Protocol in IP RAW Mode
+  __SOCKET_REGISTER8(SnPROTO,     0x0014)        // Protocol in IP RAW Mode (not W5500)
   __SOCKET_REGISTER8(SnTOS,       0x0015)        // IP TOS
   __SOCKET_REGISTER8(SnTTL,       0x0016)        // IP TTL
-  __SOCKET_REGISTER8(SnRX_SIZE,   0x001E)        // RX Memory Size (W5200 only)
-  __SOCKET_REGISTER8(SnTX_SIZE,   0x001F)        // RX Memory Size (W5200 only)
+  __SOCKET_REGISTER8(SnRX_SIZE,   0x001E)        // RX Memory Size (not W5100)
+  __SOCKET_REGISTER8(SnTX_SIZE,   0x001F)        // RX Memory Size (not W5100)
   __SOCKET_REGISTER16(SnTX_FSR,   0x0020)        // TX Free Size
   __SOCKET_REGISTER16(SnTX_RD,    0x0022)        // TX Read Pointer
   __SOCKET_REGISTER16(SnTX_WR,    0x0024)        // TX Write Pointer
   __SOCKET_REGISTER16(SnRX_RSR,   0x0026)        // RX Free Size
   __SOCKET_REGISTER16(SnRX_RD,    0x0028)        // RX Read Pointer
-  __SOCKET_REGISTER16(SnRX_WR,    0x002A)        // RX Write Pointer (supported?)
+  __SOCKET_REGISTER16(SnRX_WR,    0x002A)        // RX Write Pointer (not W5100)
+  __SOCKET_REGISTER8 (SnIMR,      0x002C)        // Interrupt Mask (not W5100)
+  __SOCKET_REGISTER16(SnFRAG,     0x002D)        // Fragment Offset in IP head (not W5100)
+  __SOCKET_REGISTER8 (SnKPALVTR,  0x002F)        // Keep alive timer (only W5500)
 
 #undef __SOCKET_REGISTER8
 #undef __SOCKET_REGISTER16
