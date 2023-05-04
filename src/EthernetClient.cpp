@@ -62,7 +62,7 @@ int EthernetClient::connect(IPAddress ip, uint16_t port)
 		if (stat == SnSR::CLOSE_WAIT) return 1;
 		if (stat == SnSR::CLOSED) return 0;
 		if (millis() - start > _timeout) break;
-		delay(1);
+		delayMicroseconds(10);
 	}
 	Ethernet.socketClose(_sockindex);
 	_sockindex = MAX_SOCK_NUM;
@@ -143,7 +143,7 @@ void EthernetClient::stop()
 			_sockindex = MAX_SOCK_NUM;
 			return; // exit the loop
 		}
-		delay(1);
+		delayMicroseconds(10);
 	} while (millis() - start < _timeout);
 
 	// if it hasn't closed, close it forcefully

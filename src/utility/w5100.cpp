@@ -211,7 +211,7 @@ uint8_t W5100Class::softReset(void)
 		//Serial.print("mr=");
 		//Serial.println(mr, HEX);
 		if (mr == 0) return 1;
-		delay(1);
+		delayMicroseconds(10);
 	} while (++count < 20);
 	return 0;
 }
@@ -470,5 +470,7 @@ void W5100Class::execCmdSn(SOCKET s, SockCMD _cmd)
 	// Send command to socket
 	writeSnCR(s, _cmd);
 	// Wait for command to complete
-	while (readSnCR(s)) ;
+	do {
+		delayMicroseconds(1);
+	} while (readSnCR(s));
 }
