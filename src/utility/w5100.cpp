@@ -53,6 +53,7 @@
 uint8_t  W5100Class::chip = 0;
 uint8_t  W5100Class::CH_BASE_MSB;
 uint8_t  W5100Class::ss_pin = SS_PIN_DEFAULT;
+bool     W5100Class::initialized = false;
 #ifdef ETHERNET_LARGE_BUFFERS
 uint16_t W5100Class::SSIZE = 2048;
 uint16_t W5100Class::SMASK = 0x07FF;
@@ -82,10 +83,45 @@ W5100Class W5100;
   uint32_t W5100Class::ss_pin_mask;
 #endif
 
+uint8_t W5100Class::reset(void)
+{
+	// Get current configuration
+	uint8_t gw[4], sn[4], mac[8], ip[4];
+	SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
+	W5100.getGatewayIp(gw);
+	W5100.getSubnetMask(sn);
+	W5100.getMACAddress(mac);
+	W5100.getIPAddress(ip);
+
+	uint16_t rtr = W5100.getRetransmissionTime();
+	uint8_t  rcr = W5100.getRetransmissionCount();
+
+	// Perform a soft-reset and clear the init flag
+	softReset();
+	initialized = false;
+	SPI.endTransaction();
+
+	// Initialize again
+	bool success = init();
+
+	// Re-apply the previous configuration
+	if (success) {
+		SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
+		W5100.setGatewayIp(gw);
+		W5100.setSubnetMask(sn);
+		W5100.setMACAddress(mac);
+		W5100.setIPAddress(ip);
+
+		W5100.setRetransmissionTime(rtr);
+		W5100.setRetransmissionCount(rcr);
+		SPI.endTransaction();
+	}
+
+	return success;
+}
 
 uint8_t W5100Class::init(void)
 {
-	static bool initialized = false;
 	uint8_t i;
 
 	if (initialized) return 1;

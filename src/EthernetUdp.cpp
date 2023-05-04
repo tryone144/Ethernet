@@ -78,9 +78,23 @@ int EthernetUDP::beginPacket(IPAddress ip, uint16_t port)
 	return Ethernet.socketStartUDP(sockindex, rawIPAddress(ip), port);
 }
 
+// Variable defined and set in socket.cpp
+extern uint8_t udp_send_error;
+
 int EthernetUDP::endPacket()
 {
-	return Ethernet.socketSendUDP(sockindex);
+	bool result = Ethernet.socketSendUDP(sockindex);
+	if (!result && udp_send_error > 10) {
+		// XXX While waiting for SEND_OK or TIMEOUT, a RECV is returned because something
+		// arrived while trying to send — and SEND_OK or TIMEOUT is never received.
+		// After this happens a few times, the W5100 will lock up. Try to compensate by
+		// closing, reseting, and calling begin() again when this happens.
+		stop();
+		W5100.reset();
+		begin(_port);
+		udp_send_error = 0;
+	}
+	return result;
 }
 
 size_t EthernetUDP::write(uint8_t byte)

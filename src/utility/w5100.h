@@ -128,6 +128,7 @@ enum W5100Linkstatus {
 class W5100Class {
 
 public:
+  static uint8_t reset(void);
   static uint8_t init(void);
 
   inline void setGatewayIp(const uint8_t * addr) { writeGAR(addr); }
@@ -142,11 +143,20 @@ public:
   inline void setIPAddress(const uint8_t * addr) { writeSIPR(addr); }
   inline void getIPAddress(uint8_t * addr) { readSIPR(addr); }
 
-  inline void setRetransmissionTime(uint16_t timeout) { if (chip == 55) writeRTR_W5500(timeout); else writeRTR(timeout); }
-  inline void setRetransmissionCount(uint8_t retry) { if (chip == 55) writeRCR_W5500(retry); else writeRCR(retry); }
+  inline void setRetransmissionTime(uint16_t timeout) { retransmissionTime = timeout; if (chip == 55) writeRTR_W5500(timeout); else writeRTR(timeout); }
+  inline uint16_t getRetransmissionTime(void) { if (chip == 55) return readRTR_W5500(); else return readRTR(); }
+
+  inline void setRetransmissionCount(uint8_t retry) { retransmissionCount = retry; if (chip == 55) writeRCR_W5500(retry); else writeRCR(retry); }
+  inline uint8_t getRetransmissionCount(void) { if (chip == 55) return readRCR_W5500(); else return readRCR(); }
 
   static void execCmdSn(SOCKET s, SockCMD _cmd);
 
+private:
+  uint16_t retransmissionTime = 2000;
+  uint8_t retransmissionCount = 8;
+
+public:
+  inline uint16_t getRetransmissionTimeoutMs() { return retransmissionTime / 10 * (retransmissionCount + 1); }
 
   // W5100 Registers
   // ---------------
@@ -321,6 +331,7 @@ public:
 private:
   static uint8_t chip;
   static uint8_t ss_pin;
+  static bool initialized;
   static uint8_t softReset(void);
   static uint8_t isW5100(void);
   static uint8_t isW5200(void);

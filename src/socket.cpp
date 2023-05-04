@@ -509,10 +509,16 @@ bool EthernetClass::socketStartUDP(uint8_t s, uint8_t* addr, uint16_t port)
 	return true;
 }
 
+// Keep track of UDP send failures when loosing SEND_OK response.
+uint8_t udp_send_error = 0;
+
 bool EthernetClass::socketSendUDP(uint8_t s)
 {
 	SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
 	W5100.execCmdSn(s, Sock_SEND);
+
+	uint16_t timeoutMax = W5100.getRetransmissionTimeoutMs() + 100;
+	uint16_t start = millis();
 
 	/* +2008.01 bj */
 	while ( (W5100.readSnIR(s) & SnIR::SEND_OK) != SnIR::SEND_OK ) {
@@ -523,6 +529,17 @@ bool EthernetClass::socketSendUDP(uint8_t s)
 			//Serial.printf("sendUDP timeout\n");
 			return false;
 		}
+
+		// XXX While waiting for SEND_OK or TIMEOUT, a RECV is returned because something
+		// arrived while trying to send — and SEND_OK or TIMEOUT is never received.
+		// Forcefully break the loop after the expected timeout period has passed.
+		if (millis() - start > timeoutMax) {
+			udp_send_error += 1;
+			W5100.writeSnIR(s, SnIR::SEND_OK);
+			SPI.endTransaction();
+			return false;
+		}
+
 		SPI.endTransaction();
 		yield();
 		SPI.beginTransaction(SPI_ETHERNET_SETTINGS);
