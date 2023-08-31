@@ -26,7 +26,11 @@ int DhcpClass::beginWithDHCP(uint8_t *mac, unsigned long timeout, unsigned long 
 void DhcpClass::reset_DHCP_lease()
 {
 	// zero out _dhcpSubnetMask, _dhcpGatewayIp, _dhcpLocalIp, _dhcpDhcpServerIp, _dhcpDnsServerIp
-	memset(_dhcpLocalIp, 0, 20);
+	memset(_dhcpLocalIp, 0, 4);
+	memset(_dhcpSubnetMask, 0, 4);
+	memset(_dhcpGatewayIp, 0, 4);
+	memset(_dhcpDhcpServerIp, 0, 4);
+	memset(_dhcpDnsServerIp, 0, 4);
 }
 
 	//return:0 on error, 1 if request is sent and response is received
@@ -57,7 +61,7 @@ int DhcpClass::request_DHCP_lease()
 			_dhcp_state = STATE_DHCP_DISCOVER;
 		} else if (_dhcp_state == STATE_DHCP_REREQUEST) {
 			_dhcpTransactionId++;
-			send_DHCP_MESSAGE(DHCP_REQUEST, ((millis() - startTime)/1000));
+			send_DHCP_MESSAGE(DHCP_REQUEST, ((millis() - startTime)/1000), false);
 			_dhcp_state = STATE_DHCP_REQUEST;
 		} else if (_dhcp_state == STATE_DHCP_DISCOVER) {
 			uint32_t respId;
@@ -116,11 +120,13 @@ void DhcpClass::presend_DHCP()
 {
 }
 
-void DhcpClass::send_DHCP_MESSAGE(uint8_t messageType, uint16_t secondsElapsed)
+void DhcpClass::send_DHCP_MESSAGE(uint8_t messageType, uint16_t secondsElapsed, bool broadcast)
 {
 	uint8_t buffer[32];
 	memset(buffer, 0, 32);
-	IPAddress dest_addr(255, 255, 255, 255); // Broadcast address
+
+	broadcast = broadcast || IPAddress(_dhcpDhcpServerIp) == IPAddress((uint32_t)0);
+	IPAddress dest_addr = broadcast ? IPAddress(255, 255, 255, 255) : IPAddress(_dhcpDhcpServerIp);
 
 	if (_dhcpUdpSocket.beginPacket(dest_addr, DHCP_SERVER_PORT) == -1) {
 		//Serial.printf("DHCP transmit error\n");
@@ -142,7 +148,7 @@ void DhcpClass::send_DHCP_MESSAGE(uint8_t messageType, uint16_t secondsElapsed)
 	buffer[9] = (secondsElapsed & 0x00ff);
 
 	// flags
-	unsigned short flags = htons(DHCP_FLAGSBROADCAST);
+	unsigned short flags = broadcast ? htons(DHCP_FLAGSBROADCAST) : 0;
 	memcpy(buffer + 10, &(flags), 2);
 
 	// ciaddr: already zeroed
